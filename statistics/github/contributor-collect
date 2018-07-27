@@ -48,6 +48,7 @@ use warnings;
 use Net::GitHub::V3;
 use Data::Dumper;
 use Time::Local;
+use DateTime;
 use File::Basename;
 use JSON;
 
@@ -133,9 +134,11 @@ sub collect_all_pulls {
             $created_date = $1 . $2 . $3;
         }
 
-        $created_date = time_string_to_epoch($created_date);
+        my $created_week = time_string_to_last_sunday_epoch($created_date);
 
-        $data{stats}{$contributor}{prs}{$created_date} += 1;
+        $data{stats}{$contributor}{prs}{$created_week} += 1;
+
+        $data{stats}{$contributor}{active}{$created_week} = 1;
 
         # check for comments in all PRs for the contributor
         my $pull_id = $pull->{number};
@@ -195,7 +198,7 @@ sub collect_all_contribs {
 
             # count active weeks
             if ($week->{c} or $week->{a} or $week->{d}) {
-                $data{stats}{$contributor}{active}{$week->{w}} += 1;
+                $data{stats}{$contributor}{active}{$week->{w}} = 1;
             }
         }
 	print STDERR "+" if ++$cnt % 10 == 0;
@@ -222,14 +225,16 @@ sub count_reviews {
             $created_date = $1 . $2 . $3;
         }
 
-        $created_date = time_string_to_epoch($created_date);
+        my $created_week = time_string_to_last_sunday_epoch($created_date);
 
         # This is always added
-        $data{stats}{$contributor}{comments}{$created_date} += 1;
+        $data{stats}{$contributor}{comments}{$created_week} += 1;
+
+        $data{stats}{$contributor}{active}{$created_week} = 1;
 
         # This is added only if the author is not the contributor himself
         if ($author ne $contributor) {
-            $data{stats}{$contributor}{reviews}{$created_date} += 1;
+            $data{stats}{$contributor}{reviews}{$created_week} += 1;
         }
     }
 }
@@ -242,4 +247,14 @@ sub time_string_to_epoch {
         substr($date, 0, 4));
 
     return $epoch;
+}
+
+# date must be YYYYMMDD
+sub time_string_to_last_sunday_epoch {
+    my ($date_string) = @_;
+    my ($year, $month, $day) = unpack "A4A2A2", $date_string;
+
+    my $date = DateTime->new(year => $year, month => $month, day => $day);
+    $date->subtract(days => $date->day_of_week % 7);
+    return $date->epoch;
 }
