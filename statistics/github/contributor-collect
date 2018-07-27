@@ -255,7 +255,6 @@ sub time_string_to_last_sunday_epoch {
     my ($year, $month, $day) = unpack "A4A2A2", $date_string;
 
     my $date = DateTime->new(year => $year, month => $month, day => $day);
-    my $desired_dow = 7;            # Sunday
-    $date->subtract(days => ($date->day_of_week - $desired_dow) % 7);
+    $date->subtract(days => $date->day_of_week % 7);
     return $date->epoch;
 }
